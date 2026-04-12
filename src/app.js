@@ -8,16 +8,21 @@
   // ---- i18n ----
   var _lang = {};
   function loadLang(lang, cb) {
+    var called = false;
+    function done() { if (!called) { called = true; if (cb) cb(); } }
     if (typeof cockpit !== 'undefined') {
-      cockpit.file('lang/' + lang + '.json').read()
-        .then(function(content) {
-          try { _lang = JSON.parse(content); } catch(e) { _lang = {}; }
-          applyLang();
-          if (cb) cb();
-        })
-        .catch(function() { _lang = {}; if (cb) cb(); });
+      try {
+        cockpit.file('lang/' + lang + '.json').read()
+          .then(function(content) {
+            try { _lang = JSON.parse(content); } catch(e) { _lang = {}; }
+            applyLang();
+            done();
+          })
+          .catch(function() { done(); });
+        setTimeout(done, 1000);
+      } catch(e) { done(); }
     } else {
-      if (cb) cb();
+      done();
     }
   }
   function t(key) { return _lang[key] || key; }
@@ -1185,16 +1190,6 @@
     document.getElementById('setting-threshold').addEventListener('change', function () { state.settings.threshold = +this.value || 100; });
     document.getElementById('modal-close').addEventListener('click', closeAllModals);
     document.getElementById('modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeAllModals(); });
-
-    // Language switcher
-    var langSwitcher = document.getElementById('lang-switcher');
-    if (langSwitcher) {
-      langSwitcher.addEventListener('change', function () {
-        var newLang = this.value;
-        try { localStorage.setItem('ctm-lang', newLang); } catch(e) {}
-        loadLang(newLang, function() { render(); });
-      });
-    }
   }
 
   function closeAllModals() {
@@ -1212,10 +1207,6 @@
 
   function init() {
     var lang = detectLang();
-    // Set switcher value immediately
-    var langSwitcher = document.getElementById('lang-switcher');
-    if (langSwitcher) langSwitcher.value = lang;
-    // Load language then start
     loadLang(lang, function() {
       initEvents(); fetchData(); loadVnstatData(); startPolling();
     });
