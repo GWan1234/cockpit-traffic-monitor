@@ -2,7 +2,9 @@
   "name": "traffic-monitor",
   "version": "1.9.0",
   "description": "Network interface traffic monitor",
-  "requires": { "cockpit": "286" },
+  "requires": {
+    "cockpit": "286"
+  },
   "menu": {
     "index": {
       "label": "Traffic Monitor",
