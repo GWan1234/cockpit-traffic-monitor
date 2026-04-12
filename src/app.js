@@ -7,17 +7,23 @@
 
   // ---- i18n ----
   var _lang = {};
-  function loadLang(lang) {
+  var _started = false;
+  function loadLang(lang, cb) {
     _lang = {};
+    function done() { if (cb) cb(); }
     if (typeof cockpit !== 'undefined') {
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'lang/' + lang + '.json', false);
-        xhr.send(null);
-        if (xhr.status === 200) { _lang = JSON.parse(xhr.responseText); }
-      } catch(e) { _lang = {}; }
-    }
-    applyLang();
+      var pending = 2;
+      function onDone() { if (--pending <= 0) done(); }
+      cockpit.file('lang/' + lang + '.json').read()
+        .then(function(c) { try { _lang = JSON.parse(c); } catch(e) {} applyLang(); onDone(); })
+        .catch(function() { onDone(); });
+      cockpit.file('manifest.json').read()
+        .then(function(c) {
+          try { var mf = JSON.parse(c); if (mf.version) document.getElementById('footer-ver').textContent = 'v' + mf.version; } catch(e) {}
+          onDone();
+        })
+        .catch(function() { onDone(); });
+    } else { done(); }
   }
   function t(key) { return _lang[key] || key; }
   function applyLang() {
@@ -1200,18 +1206,11 @@
   }
 
   function init() {
-    loadLang(detectLang());
-    // Read version from manifest
-    try {
-      var mxhr = new XMLHttpRequest();
-      mxhr.open('GET', 'manifest.json', false);
-      mxhr.send(null);
-      if (mxhr.status === 200) {
-        var mf = JSON.parse(mxhr.responseText);
-        if (mf.version) document.getElementById('footer-ver').textContent = 'v' + mf.version;
-      }
-    } catch(e) {}
-    initEvents(); fetchData(); loadVnstatData(); startPolling();
+    if (_started) return;
+    _started = true;
+    loadLang(detectLang(), function() {
+      initEvents(); fetchData(); loadVnstatData(); startPolling();
+    });
     var resizeTimer;
     window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 200); });
   }

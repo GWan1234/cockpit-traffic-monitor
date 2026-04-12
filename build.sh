@@ -10,11 +10,13 @@ INSTALL_DIR="/usr/share/cockpit/traffic-monitor"
 rm -rf "$PKG_DIR"
 mkdir -p "$PKG_DIR/DEBIAN"
 mkdir -p "$PKG_DIR${INSTALL_DIR}/src"
+mkdir -p "$PKG_DIR${INSTALL_DIR}/lang"
 
 cp index.html "$PKG_DIR${INSTALL_DIR}/"
 cp manifest.json "$PKG_DIR${INSTALL_DIR}/"
 cp src/style.css "$PKG_DIR${INSTALL_DIR}/src/"
 cp src/app.js "$PKG_DIR${INSTALL_DIR}/src/"
+cp lang/*.json "$PKG_DIR${INSTALL_DIR}/lang/"
 
 INSTALLED_SIZE=$(du -sk "$PKG_DIR/usr" | cut -f1)
 
@@ -36,9 +38,9 @@ cat > "$PKG_DIR/DEBIAN/postinst" << 'EOF'
 #!/bin/sh
 set -e
 if [ "$1" = "configure" ]; then
-    if systemctl is-active --quiet cockpit.socket 2>/dev/null; then
-        systemctl reload cockpit 2>/dev/null || true
-    fi
+ if systemctl is-active --quiet cockpit.socket 2>/dev/null; then
+ systemctl reload cockpit 2>/dev/null || true
+ fi
 fi
 EOF
 chmod 755 "$PKG_DIR/DEBIAN/postinst"
