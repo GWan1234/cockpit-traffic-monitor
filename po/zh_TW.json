@@ -95,5 +95,9 @@
   "Traffic History": "歷史流量統計",
   "5 Minutes": "5分鐘",
   "Avg. Rate": "平均速率",
-  "No historical data available": "暫無歷史資料"
+  "No historical data available": "暫無歷史資料",
+  "From": "從",
+  "To": "到",
+  "Filter": "篩選",
+  "Reset": "重設"
 }

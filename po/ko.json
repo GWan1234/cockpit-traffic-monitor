@@ -95,5 +95,9 @@
   "Traffic History": "트래픽 기록",
   "5 Minutes": "5분",
   "Avg. Rate": "평균 속도",
-  "No historical data available": "기록 데이터 없음"
+  "No historical data available": "기록 데이터 없음",
+  "From": "시작",
+  "To": "종료",
+  "Filter": "필터",
+  "Reset": "초기화"
 }

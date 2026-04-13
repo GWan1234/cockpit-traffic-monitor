@@ -95,5 +95,9 @@
   "Traffic History": "履歴トラフィック",
   "5 Minutes": "5分",
   "Avg. Rate": "平均レート",
-  "No historical data available": "履歴データがありません"
+  "No historical data available": "履歴データがありません",
+  "From": "から",
+  "To": "まで",
+  "Filter": "フィルター",
+  "Reset": "リセット"
 }

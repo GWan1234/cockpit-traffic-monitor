@@ -76,7 +76,6 @@
     sortField: 'totalBytes',
     sortDir: 'desc',
     timeRange: 300,
-    detailTimeRange: 3600,
     refreshTimer: null,
     selectedInterface: null,
     filters: { status: new Set(), name: new Set(), type: new Set() },
@@ -89,6 +88,8 @@
     detailSpeedMousePos: null,
     wifiScan: [],
     vnstatTab: 'fiveminutes',
+    vnstatDateFrom: '',
+    vnstatDateTo: '',
   };
 
   var VNSTAT_TABS = [
@@ -1004,6 +1005,12 @@
     }
     // Build vnstat history tabs and table
     state.vnstatTab = 'fiveminutes';
+    state.vnstatDateFrom = '';
+    state.vnstatDateTo = '';
+    var dateFromEl = document.getElementById('vnstat-date-from');
+    var dateToEl = document.getElementById('vnstat-date-to');
+    if (dateFromEl) dateFromEl.value = '';
+    if (dateToEl) dateToEl.value = '';
     buildVnstatTabs(name);
     renderVnstatTable(name);
     // Render realtime chart only
@@ -1121,6 +1128,13 @@
     var records = h.vnstat[state.vnstatTab].slice().reverse(); // newest first
     var tab = state.vnstatTab;
 
+    // Date range filter
+    if (state.vnstatDateFrom || state.vnstatDateTo) {
+      var fromTs = state.vnstatDateFrom ? new Date(state.vnstatDateFrom + 'T00:00:00').getTime() : 0;
+      var toTs = state.vnstatDateTo ? new Date(state.vnstatDateTo + 'T23:59:59').getTime() : Infinity;
+      records = records.filter(function (r) { return r.ts >= fromTs && r.ts <= toTs; });
+    }
+
     // Determine time format
     var timeCol = t('Time');
     var fmtTime;
@@ -1197,9 +1211,35 @@
     return bps.toFixed(0) + ' bit/s';
   }
 
+  // ---- vnstat Date Filter ----
+  function initVnstatDateFilter() {
+    var applyBtn = document.getElementById('vnstat-date-apply');
+    var resetBtn = document.getElementById('vnstat-date-reset');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function () {
+        var fromEl = document.getElementById('vnstat-date-from');
+        var toEl = document.getElementById('vnstat-date-to');
+        state.vnstatDateFrom = fromEl ? fromEl.value : '';
+        state.vnstatDateTo = toEl ? toEl.value : '';
+        if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
+      });
+    }
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        var fromEl = document.getElementById('vnstat-date-from');
+        var toEl = document.getElementById('vnstat-date-to');
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+        state.vnstatDateFrom = '';
+        state.vnstatDateTo = '';
+        if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
+      });
+    }
+  }
+
   // ---- Events ----
   function initEvents() {
-    initSort(); initFilters(); initChartTooltip();
+    initSort(); initFilters(); initChartTooltip(); initVnstatDateFilter();
     buildTimeButtons('chart-time-range', state.timeRange, function (range) { state.timeRange = range; renderChart(); });
     document.getElementById('search-input').addEventListener('input', function () { state.searchQuery = this.value.trim(); renderTable(); });
     document.addEventListener('keydown', function (e) {

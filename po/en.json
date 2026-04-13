@@ -95,5 +95,9 @@
   "Traffic History": "Traffic History",
   "5 Minutes": "5 Minutes",
   "Avg. Rate": "Avg. Rate",
-  "No historical data available": "No historical data available"
+  "No historical data available": "No historical data available",
+  "From": "From",
+  "To": "To",
+  "Filter": "Filter",
+  "Reset": "Reset"
 }
