@@ -91,5 +91,9 @@
   "Hourly": "Почасово",
   "Daily": "По дням",
   "Monthly": "По месяцам",
-  "Yearly": "По годам"
+  "Yearly": "По годам",
+  "Traffic History": "Traffic History",
+  "5 Minutes": "5 Minutes",
+  "Avg. Rate": "Avg. Rate",
+  "No historical data available": "No historical data available"
 }

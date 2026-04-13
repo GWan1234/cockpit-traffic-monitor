@@ -263,6 +263,24 @@ th.filterable{position:relative;}
 .plugin-footer svg{opacity:0.5;transition:opacity var(--transition);}
 .plugin-footer a:hover svg{opacity:1;}
 .footer-sep{margin:0 8px;opacity:0.3;}
+/* vnstat History Table */
+.vnstat-tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg-input);border-radius:var(--radius-sm);padding:3px;flex-wrap:wrap;}
+.vnstat-tab{padding:6px 14px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;border-radius:4px;transition:all var(--transition);font-family:inherit;font-weight:500;}
+.vnstat-tab:hover{color:var(--text-primary);}
+.vnstat-tab.active{background:var(--accent-blue);color:#fff;}
+.vnstat-table-wrap{background:var(--bg-card);border-radius:var(--radius-sm);overflow-x:auto;max-height:400px;overflow-y:auto;}
+.vnstat-table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;}
+.vnstat-table th{position:sticky;top:0;background:var(--bg-card);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);padding:10px 14px;text-align:right;border-bottom:2px solid var(--border-color);white-space:nowrap;z-index:1;}
+.vnstat-table th.vnstat-th-time{text-align:left;}
+.vnstat-table td{padding:8px 14px;text-align:right;border-bottom:1px solid var(--border-color);white-space:nowrap;}
+.vnstat-table td.vnstat-td-time{text-align:left;color:var(--text-secondary);font-weight:500;}
+.vnstat-table td.vnstat-td-rx{color:var(--accent-blue);}
+.vnstat-table td.vnstat-td-tx{color:var(--accent-orange);}
+.vnstat-table td.vnstat-td-total{font-weight:600;}
+.vnstat-table td.vnstat-td-rate{color:var(--text-secondary);}
+.vnstat-table tbody tr:hover{background:var(--bg-card-hover);}
+.vnstat-date-row td{background:var(--bg-input);font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:6px 14px;border-bottom:1px solid var(--border-color);}
+.vnstat-empty{text-align:center;padding:32px;color:var(--text-muted);font-size:13px;}
 /* Language Switcher */
 .lang-switcher{padding:4px 8px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-secondary);font-size:12px;cursor:pointer;outline:none;font-family:inherit;transition:all var(--transition);}
 .lang-switcher:hover{border-color:var(--text-muted);color:var(--text-primary);}

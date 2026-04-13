@@ -91,5 +91,9 @@
   "Hourly": "按小時",
   "Daily": "按天",
   "Monthly": "按月",
-  "Yearly": "按年"
+  "Yearly": "按年",
+  "Traffic History": "歷史流量統計",
+  "5 Minutes": "5分鐘",
+  "Avg. Rate": "平均速率",
+  "No historical data available": "暫無歷史資料"
 }

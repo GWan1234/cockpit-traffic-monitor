@@ -41,7 +41,8 @@
     // Rebuild time buttons with new language
     buildTimeButtons('chart-time-range', state.timeRange, function (range) { state.timeRange = range; renderChart(); });
     if (state.selectedInterface) {
-      buildTimeButtons('detail-time-range', state.detailTimeRange, function (range) { state.detailTimeRange = range; renderDetailCharts(state.selectedInterface); }, DETAIL_TIME_SPANS);
+      buildVnstatTabs(state.selectedInterface);
+      renderVnstatTable(state.selectedInterface);
     }
     renderTable();
   }
@@ -84,26 +85,25 @@
     chartRect: null,
     chartDatasets: null,
     chartPad: null,
-    detailChartDatasets: null,
     detailSpeedDatasets: null,
-    detailMousePos: null,
     detailSpeedMousePos: null,
     wifiScan: [],
+    vnstatTab: 'fiveminutes',
   };
+
+  var VNSTAT_TABS = [
+    { key: 'fiveminutes', label: function() { return t('5 Minutes'); } },
+    { key: 'hourly', label: function() { return t('Hourly'); } },
+    { key: 'daily', label: function() { return t('Daily'); } },
+    { key: 'monthly', label: function() { return t('Monthly'); } },
+    { key: 'yearly', label: function() { return t('Yearly'); } },
+  ];
 
   var TIME_SPANS = [
     { label: function() { return t('1 min'); }, seconds: 60 },
     { label: function() { return t('5 min'); }, seconds: 300 },
     { label: function() { return t('10 min'); }, seconds: 600 },
     { label: function() { return t('30 min'); }, seconds: 1800 },
-  ];
-
-  var DETAIL_TIME_SPANS = [
-    { label: function() { return t('5 min'); }, seconds: 300 },
-    { label: function() { return t('Hourly'); }, seconds: 3600 },
-    { label: function() { return t('Daily'); }, seconds: 86400 },
-    { label: function() { return t('Monthly'); }, seconds: 2592000 },
-    { label: function() { return t('Yearly'); }, seconds: 31536000 },
   ];
 
   function tierForRange(sec) {
@@ -166,10 +166,13 @@
     if (!state.history[name]) {
       state.history[name] = {
         raw: { ts: [], txSpeed: [], rxSpeed: [] },
+        fiveminutes: { ts: [], txBytes: [], rxBytes: [], txSpeed: [], rxSpeed: [] },
         minute: { ts: [], txBytes: [], rxBytes: [], txSpeed: [], rxSpeed: [] },
         hourly: { ts: [], txBytes: [], rxBytes: [], txSpeed: [], rxSpeed: [] },
         daily: { ts: [], txBytes: [], rxBytes: [], txSpeed: [], rxSpeed: [] },
         monthly: { ts: [], txBytes: [], rxBytes: [], txSpeed: [], rxSpeed: [] },
+        yearly: { ts: [], txBytes: [], rxBytes: [], txSpeed: [], rxSpeed: [] },
+        vnstat: {},
         _lastMinuteBucket: null, _lastHourlyBucket: null, _lastDailyBucket: null, _lastMonthlyBucket: null,
         _minuteAcc: { txBytes: 0, rxBytes: 0, txSpeed: [], rxSpeed: [], count: 0 },
       };
@@ -941,20 +944,6 @@
       if (state.chartDatasets) drawLineChart(canvas, state.chartDatasets, { tooltipCanvas: false });
     });
 
-    var detailCanvas = document.getElementById('detail-chart');
-    if (detailCanvas) {
-      detailCanvas.addEventListener('mousemove', function (e) {
-        var rect = detailCanvas.getBoundingClientRect();
-        var pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        state.detailMousePos = pos;
-        if (state.detailChartDatasets) drawLineChart(detailCanvas, state.detailChartDatasets, { tooltipCanvas: detailCanvas, mousePos: pos });
-      });
-      detailCanvas.addEventListener('mouseleave', function () {
-        state.detailMousePos = null;
-        if (state.detailChartDatasets) drawLineChart(detailCanvas, state.detailChartDatasets, { tooltipCanvas: false });
-      });
-    }
-
     var speedCanvas = document.getElementById('detail-speed-chart');
     if (speedCanvas) {
       speedCanvas.addEventListener('mousemove', function (e) {
@@ -974,7 +963,7 @@
   function openDetail(name) {
     var iface = state.interfaces.find(function (i) { return i.name === name; });
     if (!iface) return;
-    state.selectedInterface = name; state.detailTimeRange = 3600;
+    state.selectedInterface = name;
     document.getElementById('modal-title').textContent = iface.name + ' - ' + t('Interface Detail');
     var basicRows = [
       [t('Interface'), iface.name], [t('Type'), getTypeLabel(iface.type)],
@@ -1013,9 +1002,11 @@
     } else {
       wifiSection.style.display = 'none';
     }
-    buildTimeButtons('detail-time-range', state.detailTimeRange, function (range) {
-      state.detailTimeRange = range; renderDetailCharts(state.selectedInterface);
-    }, DETAIL_TIME_SPANS);
+    // Build vnstat history tabs and table
+    state.vnstatTab = 'fiveminutes';
+    buildVnstatTabs(name);
+    renderVnstatTable(name);
+    // Render realtime chart only
     renderDetailCharts(name);
     document.getElementById('modal-overlay').classList.add('active');
   }
@@ -1063,12 +1054,7 @@
   }
 
   function renderDetailCharts(name) {
-    var cd = getChartData(name, state.detailTimeRange);
-    state.detailChartDatasets = [
-      { data: cd.tx, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('TX') },
-      { data: cd.rx, color: '#3b82f6', fill: 'rgba(59,130,246,0.08)', label: t('RX') },
-    ];
-    drawLineChart(document.getElementById('detail-chart'), state.detailChartDatasets, { tooltipCanvas: document.getElementById('detail-chart'), mousePos: state.detailMousePos || undefined });
+    // Only render realtime (60s) chart; history uses vnstat table
     var cd60 = getChartData(name, 60);
     state.detailSpeedDatasets = [
       { data: cd60.tx, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('TX') },
@@ -1090,6 +1076,125 @@
         ]);
       }
     }
+  }
+
+  // ---- vnstat History Table ----
+  function buildVnstatTabs(ifaceName) {
+    var container = document.getElementById('vnstat-tabs');
+    if (!container) return;
+    container.innerHTML = '';
+    for (var i = 0; i < VNSTAT_TABS.length; i++) {
+      var tab = VNSTAT_TABS[i];
+      var btn = document.createElement('button');
+      btn.className = 'vnstat-tab' + (tab.key === state.vnstatTab ? ' active' : '');
+      btn.textContent = tab.label();
+      btn.dataset.key = tab.key;
+      (function (key) {
+        btn.addEventListener('click', function () {
+          state.vnstatTab = key;
+          var btns = container.querySelectorAll('.vnstat-tab');
+          for (var j = 0; j < btns.length; j++) btns[j].classList.remove('active');
+          this.classList.add('active');
+          renderVnstatTable(ifaceName);
+        });
+      })(tab.key);
+      container.appendChild(btn);
+    }
+  }
+
+  function renderVnstatTable(ifaceName) {
+    var h = state.history[ifaceName];
+    var thead = document.getElementById('vnstat-thead');
+    var tbody = document.getElementById('vnstat-tbody');
+    var emptyEl = document.getElementById('vnstat-empty');
+    var tableWrap = document.querySelector('.vnstat-table-wrap');
+    if (!h || !h.vnstat || !h.vnstat[state.vnstatTab] || h.vnstat[state.vnstatTab].length === 0) {
+      if (tableWrap) tableWrap.style.display = 'none';
+      if (emptyEl) emptyEl.style.display = '';
+      if (thead) thead.innerHTML = '';
+      if (tbody) tbody.innerHTML = '';
+      return;
+    }
+    if (tableWrap) tableWrap.style.display = '';
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    var records = h.vnstat[state.vnstatTab].slice().reverse(); // newest first
+    var tab = state.vnstatTab;
+
+    // Determine time format
+    var timeCol = t('Time');
+    var fmtTime;
+    if (tab === 'fiveminutes') {
+      fmtTime = function(ts) {
+        var d = new Date(ts);
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      };
+    } else if (tab === 'hourly') {
+      fmtTime = function(ts) {
+        var d = new Date(ts);
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':00';
+      };
+    } else if (tab === 'daily') {
+      fmtTime = function(ts) {
+        var d = new Date(ts);
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      };
+    } else if (tab === 'monthly') {
+      fmtTime = function(ts) {
+        var d = new Date(ts);
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      };
+    } else if (tab === 'yearly') {
+      fmtTime = function(ts) {
+        var d = new Date(ts);
+        return String(d.getFullYear());
+      };
+    }
+
+    // Duration for avg rate calculation
+    var durationSec = tab === 'fiveminutes' ? 300 : tab === 'hourly' ? 3600 : tab === 'daily' ? 86400 : tab === 'monthly' ? 2592000 : 31536000;
+
+    // Build header
+    thead.innerHTML = '<tr>'
+      + '<th class="vnstat-th-time">' + timeCol + '</th>'
+      + '<th class="vnstat-th-rx">' + t('RX') + '</th>'
+      + '<th class="vnstat-th-tx">' + t('TX') + '</th>'
+      + '<th class="vnstat-th-total">' + t('Total') + '</th>'
+      + '<th class="vnstat-th-rate">' + t('Avg. Rate') + '</th>'
+      + '</tr>';
+
+    // Build rows
+    var html = '';
+    var lastDate = '';
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      var dateStr = fmtTime(r.ts);
+      var total = r.rx + r.tx;
+      var rate = (total * 8) / durationSec; // bits per second
+      var datePrefix = dateStr.split(' ')[0] || dateStr;
+
+      // Date separator row
+      if (datePrefix !== lastDate && (tab === 'fiveminutes' || tab === 'hourly')) {
+        html += '<tr class="vnstat-date-row"><td colspan="5">' + datePrefix + '</td></tr>';
+        lastDate = datePrefix;
+      }
+
+      html += '<tr>'
+        + '<td class="vnstat-td-time">' + dateStr + '</td>'
+        + '<td class="vnstat-td-rx">' + fmt(r.rx) + '</td>'
+        + '<td class="vnstat-td-tx">' + fmt(r.tx) + '</td>'
+        + '<td class="vnstat-td-total">' + fmt(total) + '</td>'
+        + '<td class="vnstat-td-rate">' + fmtRate(rate) + '</td>'
+        + '</tr>';
+    }
+    tbody.innerHTML = html;
+  }
+
+  function fmtRate(bps) {
+    if (bps >= 1000000000) return (bps / 1000000000).toFixed(2) + ' Gbit/s';
+    if (bps >= 1000000) return (bps / 1000000).toFixed(2) + ' Mbit/s';
+    if (bps >= 1000) return (bps / 1000).toFixed(2) + ' kbit/s';
+    return bps.toFixed(0) + ' bit/s';
   }
 
   // ---- Events ----
@@ -1136,7 +1241,6 @@
     document.getElementById('modal-overlay').classList.remove('active');
     document.getElementById('settings-overlay').classList.remove('active');
     state.selectedInterface = null;
-    state.detailMousePos = null;
     state.detailSpeedMousePos = null;
   }
 

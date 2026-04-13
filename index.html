@@ -216,14 +216,22 @@
             <div class="detail-section"><h3 data-i18n="Basic Info">Basic Info</h3><div class="detail-table" id="detail-basic"></div></div>
             <div class="detail-section"><h3 data-i18n="Traffic Stats">Traffic Stats</h3><div class="detail-table" id="detail-stats"></div></div>
           </div>
+          <div class="detail-section"><h3 data-i18n="Realtime (60s)">Realtime (60s)</h3><div class="detail-chart-box"><canvas id="detail-speed-chart"></canvas></div></div>
           <div class="detail-section">
             <div class="section-header">
-              <h3 data-i18n="History">History</h3>
-              <div class="time-range-group" id="detail-time-range"></div>
+              <h3 data-i18n="Traffic History">Traffic History</h3>
             </div>
-            <div class="detail-chart-box"><canvas id="detail-chart"></canvas></div>
+            <div class="vnstat-tabs" id="vnstat-tabs"></div>
+            <div class="vnstat-table-wrap">
+              <table class="vnstat-table" id="vnstat-table">
+                <thead id="vnstat-thead"></thead>
+                <tbody id="vnstat-tbody"></tbody>
+              </table>
+            </div>
+            <div class="vnstat-empty" id="vnstat-empty" style="display:none;">
+              <span data-i18n="No historical data available">No historical data available</span>
+            </div>
           </div>
-          <div class="detail-section"><h3 data-i18n="Realtime (60s)">Realtime (60s)</h3><div class="detail-chart-box"><canvas id="detail-speed-chart"></canvas></div></div>
           <div class="detail-section" id="detail-wifi-section" style="display:none;">
             <h3 data-i18n="WiFi Info">WiFi Info</h3>
             <div class="detail-table" id="detail-wifi-info"></div>

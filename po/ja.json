@@ -91,5 +91,9 @@
   "Hourly": "時間別",
   "Daily": "日別",
   "Monthly": "月別",
-  "Yearly": "年別"
+  "Yearly": "年別",
+  "Traffic History": "履歴トラフィック",
+  "5 Minutes": "5分",
+  "Avg. Rate": "平均レート",
+  "No historical data available": "履歴データがありません"
 }

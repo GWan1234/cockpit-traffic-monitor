@@ -91,5 +91,9 @@
   "Hourly": "시간별",
   "Daily": "일별",
   "Monthly": "월별",
-  "Yearly": "연별"
+  "Yearly": "연별",
+  "Traffic History": "트래픽 기록",
+  "5 Minutes": "5분",
+  "Avg. Rate": "평균 속도",
+  "No historical data available": "기록 데이터 없음"
 }
