@@ -974,6 +974,10 @@
         state.openFilter.classList.remove('open'); state.openFilter = null;
       }
     });
+    // Close filter on scroll
+    document.addEventListener('scroll', function () {
+      if (state.openFilter) { state.openFilter.classList.remove('open'); state.openFilter = null; }
+    }, true);
   }
 
   // ---- Sort ----
