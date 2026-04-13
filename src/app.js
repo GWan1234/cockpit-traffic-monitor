@@ -1,32 +1,63 @@
 /* ========================================
-   Cockpit Traffic Monitor - App v9
+   Cockpit Traffic Monitor - App v10
    i18n, vnstat monthly, merged error stats
    ======================================== */
 (function () {
   'use strict';
 
-  // ---- i18n (cockpit.gettext) ----
+  // ---- i18n ----
+  var _lang = {};
+  var _langReady = false;
   function loadLang(lang) {
-    if (typeof cockpit !== 'undefined') {
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'lang/' + lang + '.json', false);
-        xhr.send(null);
-        if (xhr.status === 200) { cockpit.locale(JSON.parse(xhr.responseText)); }
-      } catch(e) {}
-    }
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', 'po/' + lang + '.json', false);
+      xhr.send();
+      if (xhr.status === 200) { _lang = JSON.parse(xhr.responseText); }
+    } catch(e) { _lang = {}; }
+    _langReady = true;
+    applyLang();
   }
-  function t(key) { return (typeof cockpit !== 'undefined') ? cockpit.gettext(key) : key; }
+  function t(key) { return _lang[key] || key; }
   function applyLang() {
     var els = document.querySelectorAll('[data-i18n]');
-    for (var i = 0; i < els.length; i++) { els[i].textContent = t(els[i].getAttribute('data-i18n')); }
+    for (var i = 0; i < els.length; i++) {
+      var key = els[i].getAttribute('data-i18n');
+      els[i].textContent = t(key);
+    }
     var phs = document.querySelectorAll('[data-i18n-placeholder]');
-    for (var j = 0; j < phs.length; j++) { phs[j].placeholder = t(phs[j].getAttribute('data-i18n-placeholder')); }
+    for (var j = 0; j < phs.length; j++) {
+      var phKey = phs[j].getAttribute('data-i18n-placeholder');
+      phs[j].placeholder = t(phKey);
+    }
+    // Update dynamic elements
+    var ifs = state.interfaces.filter(function (i) { return i.type !== 'loopback'; });
+    var countEl = document.getElementById('interface-count');
+    if (countEl) countEl.innerHTML = ifs.length + ' <span data-i18n="interfaces">' + t('interfaces') + '</span>';
+    var modTitle = document.getElementById('modal-title');
+    if (modTitle && state.selectedInterface) {
+      modTitle.textContent = state.selectedInterface + ' - ' + t('Interface Detail');
+    }
+    // Rebuild time buttons with new language
+    buildTimeButtons('chart-time-range', state.timeRange, function (range) { state.timeRange = range; renderChart(); });
+    if (state.selectedInterface) {
+      buildTimeButtons('detail-time-range', state.detailTimeRange, function (range) { state.detailTimeRange = range; renderDetailCharts(state.selectedInterface); });
+    }
+    renderTable();
   }
   function detectLang() {
-    if (typeof cockpit !== 'undefined' && cockpit.language) return cockpit.language.replace('-', '_');
-    var nav = navigator.language || '';
-    if (nav.toLowerCase().indexOf('zh') === 0) return 'zh_CN';
+    var saved = null;
+    try { saved = localStorage.getItem('ctm-lang'); } catch(e) {}
+    if (saved) return saved;
+    var nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    if (nav.indexOf('zh') === 0) return nav.indexOf('tw') !== -1 || nav.indexOf('hk') !== -1 || nav.indexOf('mo') !== -1 ? 'zh_TW' : 'zh_CN';
+    if (nav.indexOf('ja') === 0) return 'ja';
+    if (nav.indexOf('ko') === 0) return 'ko';
+    if (nav.indexOf('fr') === 0) return 'fr';
+    if (nav.indexOf('de') === 0) return 'de';
+    if (nav.indexOf('es') === 0) return 'es';
+    if (nav.indexOf('pt') === 0) return 'pt';
+    if (nav.indexOf('ru') === 0) return 'ru';
     return 'en';
   }
 
@@ -61,15 +92,15 @@
   };
 
   var TIME_SPANS = [
-    { label: function() { return t('1分钟'); }, seconds: 60 },
-    { label: function() { return t('5分钟'); }, seconds: 300 },
-    { label: function() { return t('30分钟'); }, seconds: 1800 },
-    { label: function() { return t('1小时'); }, seconds: 3600 },
-    { label: function() { return t('6小时'); }, seconds: 21600 },
-    { label: function() { return t('12小时'); }, seconds: 43200 },
-    { label: function() { return t('24小时'); }, seconds: 86400 },
-    { label: function() { return t('3天'); }, seconds: 259200 },
-    { label: function() { return t('7天'); }, seconds: 604800 },
+    { label: function() { return t('1 min'); }, seconds: 60 },
+    { label: function() { return t('5 min'); }, seconds: 300 },
+    { label: function() { return t('30 min'); }, seconds: 1800 },
+    { label: function() { return t('1 hour'); }, seconds: 3600 },
+    { label: function() { return t('6 hours'); }, seconds: 21600 },
+    { label: function() { return t('12 hours'); }, seconds: 43200 },
+    { label: function() { return t('24 hours'); }, seconds: 86400 },
+    { label: function() { return t('3 days'); }, seconds: 259200 },
+    { label: function() { return t('7 days'); }, seconds: 604800 },
   ];
 
   function tierForRange(sec) {
@@ -114,16 +145,16 @@
     return 'ethernet';
   }
   var typeLabels = {
-    ethernet: function() { return t('物理网卡'); },
-    bond: function() { return t('绑定接口'); },
-    vlan: function() { return t('VLAN 子接口'); },
-    bridge: function() { return t('网桥'); },
-    wireless: function() { return t('无线'); },
-    firewall: function() { return t('防火墙接口'); },
-    tap: function() { return t('TAP 接口'); },
-    veth: function() { return t('虚拟以太网'); },
-    virtual: function() { return t('虚拟接口'); },
-    loopback: function() { return t('回环'); },
+    ethernet: function() { return t('Ethernet'); },
+    bond: function() { return t('Bond'); },
+    vlan: function() { return t('VLAN'); },
+    bridge: function() { return t('Bridge'); },
+    wireless: function() { return t('Wireless'); },
+    firewall: function() { return t('Firewall'); },
+    tap: function() { return t('TAP'); },
+    veth: function() { return t('vEth'); },
+    virtual: function() { return t('Virtual'); },
+    loopback: function() { return t('Loopback'); },
   };
   function getTypeLabel(type) { return (typeLabels[type] || function() { return type; })(); }
 
@@ -390,16 +421,7 @@
   }
 
   function fetchIfaceInfo(names) {
-    if (typeof cockpit === 'undefined') {
-      for (var n = 0; n < names.length; n++) {
-        var nm = names[n];
-        if (!state.linkSpeeds[nm]) state.linkSpeeds[nm] = [0, 100, 1000, 2500, 10000][Math.floor(Math.random() * 5)];
-        if (!state.macAddresses[nm]) state.macAddresses[nm] = '00:' + Array.from({length:5}, function() { return Math.floor(Math.random()*256).toString(16).padStart(2,'0'); }).join(':');
-        if (!state.ipAddresses[nm]) state.ipAddresses[nm] = nm === 'lo' ? '127.0.0.1/8' : '192.168.' + Math.floor(Math.random()*255) + '.' + Math.floor(Math.random()*255) + '/24';
-        if (!state.ipv6Addresses[nm]) state.ipv6Addresses[nm] = nm === 'lo' ? '::1/128' : 'fe80::' + Array.from({length:4}, function() { return Math.floor(Math.random()*65536).toString(16); }).join(':') + '/64';
-      }
-      return;
-    }
+    if (typeof cockpit === 'undefined') return;
     for (var ni = 0; ni < names.length; ni++) {
       (function (name) {
         if (!state.macAddresses[name]) {
@@ -414,87 +436,85 @@
         }
       })(names[ni]);
     }
-    if (typeof cockpit !== 'undefined') {
-      cockpit.spawn(['ip', '-4', '-o', 'addr', 'show'], { err: 'ignore' })
-        .then(function (output) {
-          var lines = output.trim().split('\n');
-          for (var i = 0; i < lines.length; i++) {
-            var m = lines[i].match(/^\d+:\s+(\S+)\s+inet\s+([\d.\/]+)/);
-            if (m) state.ipAddresses[m[1]] = m[2];
-          }
-        }).catch(function () {});
-      cockpit.spawn(['ip', '-6', '-o', 'addr', 'show'], { err: 'ignore' })
-        .then(function (output) {
-          var lines = output.trim().split('\n');
-          for (var i = 0; i < lines.length; i++) {
-            var m = lines[i].match(/^\d+:\s+(\S+)\s+inet6\s+([a-f0-9:\/]+)/);
-            if (m) {
-              var addr = m[2];
-              if (addr.indexOf('fe80') === 0) {
-                if (!state.ipv6Addresses[m[1]] || state.ipv6Addresses[m[1]] === '-') state.ipv6Addresses[m[1]] = addr;
-              } else {
-                state.ipv6Addresses[m[1]] = addr;
-              }
+    cockpit.spawn(['ip', '-4', '-o', 'addr', 'show'], { err: 'ignore' })
+      .then(function (output) {
+        var lines = output.trim().split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          var m = lines[i].match(/^\d+:\s+(\S+)\s+inet\s+([\d.\/]+)/);
+          if (m) state.ipAddresses[m[1]] = m[2];
+        }
+      }).catch(function () {});
+    cockpit.spawn(['ip', '-6', '-o', 'addr', 'show'], { err: 'ignore' })
+      .then(function (output) {
+        var lines = output.trim().split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          var m = lines[i].match(/^\d+:\s+(\S+)\s+inet6\s+([a-f0-9:\/]+)/);
+          if (m) {
+            var addr = m[2];
+            if (addr.indexOf('fe80') === 0) {
+              if (!state.ipv6Addresses[m[1]] || state.ipv6Addresses[m[1]] === '-') state.ipv6Addresses[m[1]] = addr;
+            } else {
+              state.ipv6Addresses[m[1]] = addr;
             }
           }
-        }).catch(function () {});
-      cockpit.spawn(['nmcli', '-t', '-f', 'IN-USE,SSID,SIGNAL,CHAN,FREQ,BARS,SECURITY,MODE', 'device', 'wifi', 'list'], { err: 'ignore' })
-        .then(function (output) {
-          var lines = output.trim().split('\n');
-          var scanList = [];
-          for (var i = 0; i < lines.length; i++) {
-            var parts = lines[i].split(':');
-            if (parts.length >= 7) {
-              var inUse = parts[0] === '*';
-              var ssid = parts[1];
-              var signal = parseInt(parts[2]) || 0;
-              var chan = parseInt(parts[3]) || 0;
-              var freq = parts[4] || '';
-              var bars = parts[5] || '';
-              var security = parts[6] || '';
-              var mode = parts[7] || '';
-              var freqNum = parseInt(freq) || 0;
-              var band = freqNum >= 5000 ? '5 GHz' : (freqNum >= 2400 ? '2.4 GHz' : '');
-              if (ssid && ssid.length > 0) {
-                scanList.push({ inUse: inUse, ssid: ssid, signal: signal, chan: chan, freq: freq, bars: bars, security: security, band: band, mode: mode });
-              }
-              if (inUse) {
-                if (!state.wifiInfo) state.wifiInfo = {};
-                for (var di = 0; di < names.length; di++) {
-                  if (ifaceType(names[di]) === 'wireless') {
-                    if (!state.wifiInfo[names[di]]) state.wifiInfo[names[di]] = {};
-                    state.wifiInfo[names[di]].ssid = ssid;
-                    state.wifiInfo[names[di]].signal = signal;
-                    state.wifiInfo[names[di]].bars = bars;
-                    state.wifiInfo[names[di]].rate = state.wifiInfo[names[di]].rate || 0;
-                    state.wifiInfo[names[di]].chan = chan;
-                    state.wifiInfo[names[di]].band = band;
-                    state.wifiInfo[names[di]].security = security;
-                    break;
-                  }
+        }
+      }).catch(function () {});
+    cockpit.spawn(['nmcli', '-t', '-f', 'IN-USE,SSID,SIGNAL,CHAN,FREQ,BARS,SECURITY,MODE', 'device', 'wifi', 'list'], { err: 'ignore' })
+      .then(function (output) {
+        var lines = output.trim().split('\n');
+        var scanList = [];
+        for (var i = 0; i < lines.length; i++) {
+          var parts = lines[i].split(':');
+          if (parts.length >= 7) {
+            var inUse = parts[0] === '*';
+            var ssid = parts[1];
+            var signal = parseInt(parts[2]) || 0;
+            var chan = parseInt(parts[3]) || 0;
+            var freq = parts[4] || '';
+            var bars = parts[5] || '';
+            var security = parts[6] || '';
+            var mode = parts[7] || '';
+            var freqNum = parseInt(freq) || 0;
+            var band = freqNum >= 5000 ? '5 GHz' : (freqNum >= 2400 ? '2.4 GHz' : '');
+            if (ssid && ssid.length > 0) {
+              scanList.push({ inUse: inUse, ssid: ssid, signal: signal, chan: chan, freq: freq, bars: bars, security: security, band: band, mode: mode });
+            }
+            if (inUse) {
+              if (!state.wifiInfo) state.wifiInfo = {};
+              for (var di = 0; di < names.length; di++) {
+                if (ifaceType(names[di]) === 'wireless') {
+                  if (!state.wifiInfo[names[di]]) state.wifiInfo[names[di]] = {};
+                  state.wifiInfo[names[di]].ssid = ssid;
+                  state.wifiInfo[names[di]].signal = signal;
+                  state.wifiInfo[names[di]].bars = bars;
+                  state.wifiInfo[names[di]].rate = state.wifiInfo[names[di]].rate || 0;
+                  state.wifiInfo[names[di]].chan = chan;
+                  state.wifiInfo[names[di]].band = band;
+                  state.wifiInfo[names[di]].security = security;
+                  break;
                 }
               }
             }
           }
-          state.wifiScan = scanList;
-        }).catch(function () {});
-      for (var wi = 0; wi < names.length; wi++) {
-        (function (ifaceName) {
-          if (ifaceType(ifaceName) === 'wireless') {
-            cockpit.spawn(['iw', 'dev', ifaceName, 'link'], { err: 'ignore' })
-              .then(function (output) {
-                if (!state.wifiInfo) state.wifiInfo = {};
-                if (!state.wifiInfo[ifaceName]) state.wifiInfo[ifaceName] = {};
-                var rxMatch = output.match(/rx bitrate:\s*([\d.]+)\s*(\w+)/);
-                var txMatch = output.match(/tx bitrate:\s*([\d.]+)\s*(\w+)/);
-                var sigMatch = output.match(/signal:\s*(-?\d+)\s*dBm/);
-                if (rxMatch) state.wifiInfo[ifaceName].rxRate = parseFloat(rxMatch[1]) + ' ' + rxMatch[2];
-                if (txMatch) state.wifiInfo[ifaceName].txRate = parseFloat(txMatch[1]) + ' ' + txMatch[2];
-                if (sigMatch) state.wifiInfo[ifaceName].signal = Math.max(0, 100 + parseInt(sigMatch[1]));
-              }).catch(function () {});
-          }
-        })(names[wi]);
-      }
+        }
+        state.wifiScan = scanList;
+      }).catch(function () {});
+    for (var wi = 0; wi < names.length; wi++) {
+      (function (ifaceName) {
+        if (ifaceType(ifaceName) === 'wireless') {
+          cockpit.spawn(['iw', 'dev', ifaceName, 'link'], { err: 'ignore' })
+            .then(function (output) {
+              if (!state.wifiInfo) state.wifiInfo = {};
+              if (!state.wifiInfo[ifaceName]) state.wifiInfo[ifaceName] = {};
+              var rxMatch = output.match(/rx bitrate:\s*([\d.]+)\s*(\w+)/);
+              var txMatch = output.match(/tx bitrate:\s*([\d.]+)\s*(\w+)/);
+              var sigMatch = output.match(/signal:\s*(-?\d+)\s*dBm/);
+              if (rxMatch) state.wifiInfo[ifaceName].rxRate = parseFloat(rxMatch[1]) + ' ' + rxMatch[2];
+              if (txMatch) state.wifiInfo[ifaceName].txRate = parseFloat(txMatch[1]) + ' ' + txMatch[2];
+              if (sigMatch) state.wifiInfo[ifaceName].signal = Math.max(0, 100 + parseInt(sigMatch[1]));
+            }).catch(function () {});
+        }
+      })(names[wi]);
     }
   }
 
@@ -536,35 +556,13 @@
   }
 
   function fetchData() {
-    if (typeof cockpit !== 'undefined') {
-      cockpit.file('/proc/net/dev').read().then(function (c) {
-        var ifaces = parseNetDev(c);
-        fetchIfaceInfo(ifaces.map(function (i) { return i.name; }));
-        updateState(ifaces);
-        render();
-      }).catch(function (e) { console.error('read /proc/net/dev:', e); });
-    } else {
-      demoData();
-    }
-  }
-
-  function demoData() {
-    var names = ['eth0', 'eth1', 'wlan0', 'docker0', 'lo', 'veth1a2b3c', 'br-bridge', 'wg0'];
-    fetchIfaceInfo(names);
-    var ifaces = names.map(function (name) {
-      var prev = state.interfaces.find(function (p) { return p.name === name; }) || {};
-      var rxB = prev.rxBytes || Math.random() * 1e10;
-      var txB = prev.txBytes || Math.random() * 5e9;
-      return {
-        name: name,
-        rxBytes: rxB + Math.random() * 2e6, txBytes: txB + Math.random() * 1e6,
-        rxPackets: Math.floor(rxB / 1400), txPackets: Math.floor(txB / 1400),
-        rxErrors: Math.floor(Math.random() * 3), txErrors: Math.floor(Math.random() * 2),
-        rxDropped: Math.floor(Math.random() * 5), txDropped: Math.floor(Math.random() * 3),
-      };
-    });
-    updateState(ifaces);
-    render();
+    if (typeof cockpit === 'undefined') return;
+    cockpit.file('/proc/net/dev').read().then(function (c) {
+      var ifaces = parseNetDev(c);
+      fetchIfaceInfo(ifaces.map(function (i) { return i.name; }));
+      updateState(ifaces);
+      render();
+    }).catch(function (e) { console.error('read /proc/net/dev:', e); });
   }
 
   // ---- Filter / Sort ----
@@ -582,7 +580,7 @@
       var q = state.searchQuery.toLowerCase();
       list = list.filter(function (i) { return i.name.toLowerCase().indexOf(q) !== -1; });
     }
-    if (state.filters.status.size > 0) list = list.filter(function (i) { return state.filters.status.has(i.up ? t('活跃') : t('离线')); });
+    if (state.filters.status.size > 0) list = list.filter(function (i) { return state.filters.status.has(i.up ? t('Active') : t('Offline')); });
     if (state.filters.name.size > 0) list = list.filter(function (i) { return state.filters.name.has(i.name); });
     if (state.filters.type.size > 0) list = list.filter(function (i) { return state.filters.type.has(getTypeLabel(i.type)); });
     var f = state.sortField, d = state.sortDir === 'desc' ? -1 : 1;
@@ -617,7 +615,7 @@
     }
     if (allX.length < 2) {
       ctx.fillStyle = '#6e7681'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(t('等待数据...'), w / 2, h / 2);
+      ctx.fillText(t('Waiting for data...'), w / 2, h / 2);
       return null;
     }
 
@@ -697,7 +695,7 @@
           } else {
             timeStr = dt2.getHours().toString().padStart(2,'0') + ':' + dt2.getMinutes().toString().padStart(2,'0') + ':' + dt2.getSeconds().toString().padStart(2,'0');
           }
-          var lines = [t('时间') + ': ' + timeStr];
+          var lines = [t('Time') + ': ' + timeStr];
           for (var li = 0; li < datasets.length; li++) {
             if (nearestIdx < datasets[li].data.length) {
               lines.push(datasets[li].label + ': ' + fmtS(datasets[li].data[nearestIdx].y));
@@ -770,7 +768,7 @@
     document.getElementById('stat-upload').textContent = fmt(totalTx);
     document.getElementById('stat-download').textContent = fmt(totalRx);
     document.getElementById('stat-speed').textContent = fmtS(totalSpd);
-    document.getElementById('interface-count').innerHTML = ifs.length + ' <span data-i18n="接口">' + t('接口') + '</span>';
+    document.getElementById('interface-count').innerHTML = ifs.length + ' <span data-i18n="interfaces">' + t('interfaces') + '</span>';
   }
 
   function renderChart() {
@@ -796,8 +794,8 @@
       txData.push({ x: ts, y: tx }); rxData.push({ x: ts, y: rx });
     }
     state.chartDatasets = [
-      { data: txData, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('发送') },
-      { data: rxData, color: '#3b82f6', fill: 'rgba(59,130,246,0.08)', label: t('接收') },
+      { data: txData, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('TX') },
+      { data: rxData, color: '#3b82f6', fill: 'rgba(59,130,246,0.08)', label: t('RX') },
     ];
     drawLineChart(canvas, state.chartDatasets, { tooltipCanvas: canvas });
   }
@@ -822,7 +820,7 @@
         linkCell = fmtSpeed(iface.linkSpeed);
       }
       html += '<tr data-name="' + iface.name + '">'
-        + '<td><div class="td-status"><span class="status-dot ' + (iface.up ? 'up' : 'down') + '"></span>' + (iface.up ? t('活跃') : t('离线')) + '</div></td>'
+        + '<td><div class="td-status"><span class="status-dot ' + (iface.up ? 'up' : 'down') + '"></span>' + (iface.up ? t('Active') : t('Offline')) + '</div></td>'
         + '<td class="td-name">' + iface.name + '</td>'
         + '<td><span class="type-tag ' + iface.type + '">' + getTypeLabel(iface.type) + '</span></td>'
         + '<td class="td-link">' + linkCell + '</td>'
@@ -880,7 +878,7 @@
     var counts = {};
     for (var i = 0; i < all.length; i++) {
       var val;
-      if (field === 'status') val = all[i].up ? t('活跃') : t('离线');
+      if (field === 'status') val = all[i].up ? t('Active') : t('Offline');
       else if (field === 'name') val = all[i].name;
       else if (field === 'type') val = getTypeLabel(all[i].type);
       else continue;
@@ -903,13 +901,13 @@
     var selected = state.filters[field], hasFilter = selected.size > 0;
     var th = dropdown.closest('th');
     if (th) th.classList.toggle('filter-active', hasFilter);
-    var html = '<div class="filter-search"><input type="text" placeholder="' + t('搜索...') + '"></div>'
-      + '<div class="filter-actions"><button class="btn-sel-all">' + t('全选') + '</button><button class="btn-sel-none">' + t('清除') + '</button></div><div class="filter-list">';
+    var html = '<div class="filter-search"><input type="text" placeholder="' + t('Search...') + '"></div>'
+      + '<div class="filter-actions"><button class="btn-sel-all">' + t('Select All') + '</button><button class="btn-sel-none">' + t('Clear') + '</button></div><div class="filter-list">';
     for (var i = 0; i < items.length; i++) {
       var checked = hasFilter ? (selected.has(items[i].value) ? ' checked' : '') : ' checked';
       html += '<div class="filter-item"><input type="checkbox"' + checked + ' data-field="' + field + '" data-value="' + items[i].value + '"><label>' + items[i].value + '</label><span class="filter-count">' + items[i].count + '</span></div>';
     }
-    html += '</div><div class="filter-footer"><button class="btn-clear">' + t('清除筛选') + '</button><button class="btn-apply">' + t('确定') + '</button></div>';
+    html += '</div><div class="filter-footer"><button class="btn-clear">' + t('Clear Filter') + '</button><button class="btn-apply">' + t('Apply') + '</button></div>';
     dropdown.innerHTML = html;
     dropdown.querySelector('.filter-search input').addEventListener('input', function () {
       var q = this.value.toLowerCase();
@@ -937,6 +935,13 @@
     });
   }
 
+  function positionFilterDropdown(dropdown, iconEl) {
+    var rect = iconEl.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = (rect.bottom + 4) + 'px';
+    dropdown.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 220)) + 'px';
+  }
+
   function initFilters() {
     var filterThs = document.querySelectorAll('th.filterable');
     for (var i = 0; i < filterThs.length; i++) {
@@ -947,10 +952,19 @@
           icon.style.cursor = 'pointer';
           icon.addEventListener('click', function (e) {
             e.stopPropagation();
-            if (state.openFilter && state.openFilter !== dropdown) state.openFilter.classList.remove('open');
-            if (dropdown.classList.contains('open')) { dropdown.classList.remove('open'); state.openFilter = null; }
-            else { buildFilterDropdown(field, dropdown); dropdown.classList.add('open'); state.openFilter = dropdown;
-              var inp = dropdown.querySelector('input[type="text"]'); if (inp) inp.focus(); }
+            if (state.openFilter && state.openFilter !== dropdown) {
+              state.openFilter.classList.remove('open');
+            }
+            if (dropdown.classList.contains('open')) {
+              dropdown.classList.remove('open'); state.openFilter = null;
+            } else {
+              buildFilterDropdown(field, dropdown);
+              positionFilterDropdown(dropdown, icon);
+              dropdown.classList.add('open');
+              state.openFilter = dropdown;
+              var inp = dropdown.querySelector('input[type="text"]');
+              if (inp) inp.focus();
+            }
           });
         }
       })(filterThs[i]);
@@ -1029,36 +1043,35 @@
     var iface = state.interfaces.find(function (i) { return i.name === name; });
     if (!iface) return;
     state.selectedInterface = name; state.detailTimeRange = 3600;
-    document.getElementById('modal-title').textContent = iface.name + ' - ' + t('接口详情');
+    document.getElementById('modal-title').textContent = iface.name + ' - ' + t('Interface Detail');
     var basicRows = [
-      [t('接口名称'), iface.name], [t('类型'), getTypeLabel(iface.type)],
-      [t('MAC 地址'), iface.mac || '-'], [t('IPv4 地址'), iface.ip || '-'],
-      [t('IPv6 地址'), iface.ipv6 || '-'],
+      [t('Interface'), iface.name], [t('Type'), getTypeLabel(iface.type)],
+      [t('MAC Address'), iface.mac || '-'], [t('IPv4 Address'), iface.ip || '-'],
+      [t('IPv6 Address'), iface.ipv6 || '-'],
     ];
     if (iface.type === 'wireless' && iface.wifi) {
-      if (iface.wifi.ssid) basicRows.push([t('连接网络'), iface.wifi.ssid]);
-      basicRows.push([t('信号强度'), (iface.wifi.signal || 0) + '%']);
-      if (iface.wifi.bars) basicRows.push([t('信号质量'), iface.wifi.bars]);
-      if (iface.wifi.band) basicRows.push([t('频段'), iface.wifi.band]);
-      if (iface.wifi.chan) basicRows.push([t('信道'), iface.wifi.chan]);
-      if (iface.wifi.security) basicRows.push([t('加密方式'), iface.wifi.security]);
-      if (iface.wifi.rate) basicRows.push([t('无线速率'), iface.wifi.rate + ' Mbit/s']);
-      if (iface.wifi.rxRate) basicRows.push([t('接收速率'), iface.wifi.rxRate]);
-      if (iface.wifi.txRate) basicRows.push([t('发送速率'), iface.wifi.txRate]);
+      if (iface.wifi.ssid) basicRows.push([t('SSID'), iface.wifi.ssid]);
+      basicRows.push([t('Signal'), (iface.wifi.signal || 0) + '%']);
+      if (iface.wifi.bars) basicRows.push([t('Quality'), iface.wifi.bars]);
+      if (iface.wifi.band) basicRows.push([t('Band'), iface.wifi.band]);
+      if (iface.wifi.chan) basicRows.push([t('Channel'), iface.wifi.chan]);
+      if (iface.wifi.security) basicRows.push([t('Security'), iface.wifi.security]);
+      if (iface.wifi.rate) basicRows.push([t('Rate'), iface.wifi.rate + ' Mbit/s']);
+      if (iface.wifi.rxRate) basicRows.push([t('RX Rate'), iface.wifi.rxRate]);
+      if (iface.wifi.txRate) basicRows.push([t('TX Rate'), iface.wifi.txRate]);
     } else {
-      basicRows.push([t('链接速率'), fmtSpeed(iface.linkSpeed)]);
+      basicRows.push([t('Link Speed'), fmtSpeed(iface.linkSpeed)]);
     }
-    basicRows.push([t('状态'), iface.up ? '🟢 ' + t('活跃') : '🔴 ' + t('离线')]);
+    basicRows.push([t('Status'), iface.up ? '🟢 ' + t('Active') : '🔴 ' + t('Offline')]);
     document.getElementById('detail-basic').innerHTML = mkRows(basicRows);
     // Merged traffic stats including errors
-    var errTotal = (iface.txErrors || 0) + (iface.rxErrors || 0) + (iface.txDropped || 0) + (iface.rxDropped || 0);
     document.getElementById('detail-stats').innerHTML = mkRows([
-      [t('总发送流量'), fmt(iface.txBytes)], [t('总接收流量'), fmt(iface.rxBytes)],
-      [t('总流量'), fmt(iface.totalBytes)], [t('发送数据包'), iface.txPackets.toLocaleString()],
-      [t('接收数据包'), iface.rxPackets.toLocaleString()],
-      [t('当前发送速率'), fmtS(iface.txSpeed)], [t('当前接收速率'), fmtS(iface.rxSpeed)],
-      [t('发送错误'), iface.txErrors, true], [t('接收错误'), iface.rxErrors, true],
-      [t('发送丢包'), iface.txDropped, true], [t('接收丢包'), iface.rxDropped, true],
+      [t('Total TX Traffic'), fmt(iface.txBytes)], [t('Total RX Traffic'), fmt(iface.rxBytes)],
+      [t('Total'), fmt(iface.totalBytes)], [t('TX Packets'), iface.txPackets.toLocaleString()],
+      [t('RX Packets'), iface.rxPackets.toLocaleString()],
+      [t('TX Speed'), fmtS(iface.txSpeed)], [t('RX Speed'), fmtS(iface.rxSpeed)],
+      [t('TX Errors'), iface.txErrors, true], [t('RX Errors'), iface.rxErrors, true],
+      [t('TX Dropped'), iface.txDropped, true], [t('RX Dropped'), iface.rxDropped, true],
     ]);
     // WiFi section
     var wifiSection = document.getElementById('detail-wifi-section');
@@ -1080,25 +1093,25 @@
     var scanEl = document.getElementById('detail-wifi-scan');
     var wifi = iface.wifi || {};
     infoEl.innerHTML = mkRows([
-      [t('连接网络'), wifi.ssid || '-'],
-      [t('信号强度'), (wifi.signal || 0) + '%'],
-      [t('频段'), wifi.band || '-'],
-      [t('信道'), wifi.chan || '-'],
-      [t('加密方式'), wifi.security || '-'],
+      [t('SSID'), wifi.ssid || '-'],
+      [t('Signal'), (wifi.signal || 0) + '%'],
+      [t('Band'), wifi.band || '-'],
+      [t('Channel'), wifi.chan || '-'],
+      [t('Security'), wifi.security || '-'],
     ]);
     var scanList = state.wifiScan || [];
     if (scanList.length === 0) {
-      scanEl.innerHTML = '<div class="wifi-empty">' + t('暂无扫描数据') + '</div>';
+      scanEl.innerHTML = '<div class="wifi-empty">' + t('No scan data') + '</div>';
       return;
     }
     scanList.sort(function (a, b) { return (b.inUse ? 1000 : 0) + b.signal - (a.inUse ? 1000 : 0) - a.signal; });
-    var html = '<table class="wifi-table"><thead><tr><th></th><th>' + t('网络名称') + '</th><th>' + t('信号') + '</th><th>' + t('频段') + '</th><th>' + t('信道') + '</th><th>' + t('加密') + '</th></tr></thead><tbody>';
+    var html = '<table class="wifi-table"><thead><tr><th></th><th>' + t('SSID') + '</th><th>' + t('Signal') + '</th><th>' + t('Band') + '</th><th>' + t('Channel') + '</th><th>' + t('Security') + '</th></tr></thead><tbody>';
     for (var i = 0; i < scanList.length; i++) {
       var ap = scanList[i];
       var sigColor = ap.signal >= 70 ? 'var(--accent-green)' : ap.signal >= 40 ? 'var(--accent-orange)' : 'var(--accent-red)';
       html += '<tr class="' + (ap.inUse ? 'wifi-connected' : '') + '">'
         + '<td>' + (ap.inUse ? '●' : '') + '</td>'
-        + '<td>' + (ap.ssid || '(隐藏)') + '</td>'
+        + '<td>' + (ap.ssid || '(hidden)') + '</td>'
         + '<td style="color:' + sigColor + '">' + ap.signal + '%</td>'
         + '<td>' + (ap.band || '-') + '</td>'
         + '<td>' + (ap.chan || '-') + '</td>'
@@ -1120,14 +1133,14 @@
   function renderDetailCharts(name) {
     var cd = getChartData(name, state.detailTimeRange);
     state.detailChartDatasets = [
-      { data: cd.tx, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('发送') },
-      { data: cd.rx, color: '#3b82f6', fill: 'rgba(59,130,246,0.08)', label: t('接收') },
+      { data: cd.tx, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('TX') },
+      { data: cd.rx, color: '#3b82f6', fill: 'rgba(59,130,246,0.08)', label: t('RX') },
     ];
     drawLineChart(document.getElementById('detail-chart'), state.detailChartDatasets, { tooltipCanvas: document.getElementById('detail-chart'), mousePos: state.detailMousePos || undefined });
     var cd60 = getChartData(name, 60);
     state.detailSpeedDatasets = [
-      { data: cd60.tx, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('发送') },
-      { data: cd60.rx, color: '#3b82f6', fill: 'rgba(59,130,246,0.08)', label: t('接收') },
+      { data: cd60.tx, color: '#f59e0b', fill: 'rgba(245,158,11,0.08)', label: t('TX') },
+      { data: cd60.rx, color: '#3b82f6', fill: 'rgba(59,130,246,0.08)', label: t('RX') },
     ];
     drawLineChart(document.getElementById('detail-speed-chart'), state.detailSpeedDatasets, { tooltipCanvas: document.getElementById('detail-speed-chart'), mousePos: state.detailSpeedMousePos || undefined });
     // Update detail stats live
@@ -1136,12 +1149,12 @@
       var statsEl = document.getElementById('detail-stats');
       if (statsEl) {
         statsEl.innerHTML = mkRows([
-          [t('总发送流量'), fmt(iface.txBytes)], [t('总接收流量'), fmt(iface.rxBytes)],
-          [t('总流量'), fmt(iface.totalBytes)], [t('发送数据包'), iface.txPackets.toLocaleString()],
-          [t('接收数据包'), iface.rxPackets.toLocaleString()],
-          [t('当前发送速率'), fmtS(iface.txSpeed)], [t('当前接收速率'), fmtS(iface.rxSpeed)],
-          [t('发送错误'), iface.txErrors, true], [t('接收错误'), iface.rxErrors, true],
-          [t('发送丢包'), iface.txDropped, true], [t('接收丢包'), iface.rxDropped, true],
+          [t('Total TX Traffic'), fmt(iface.txBytes)], [t('Total RX Traffic'), fmt(iface.rxBytes)],
+          [t('Total'), fmt(iface.totalBytes)], [t('TX Packets'), iface.txPackets.toLocaleString()],
+          [t('RX Packets'), iface.rxPackets.toLocaleString()],
+          [t('TX Speed'), fmtS(iface.txSpeed)], [t('RX Speed'), fmtS(iface.rxSpeed)],
+          [t('TX Errors'), iface.txErrors, true], [t('RX Errors'), iface.rxErrors, true],
+          [t('TX Dropped'), iface.txDropped, true], [t('RX Dropped'), iface.rxDropped, true],
         ]);
       }
     }
@@ -1173,6 +1186,18 @@
     document.getElementById('setting-threshold').addEventListener('change', function () { state.settings.threshold = +this.value || 100; });
     document.getElementById('modal-close').addEventListener('click', closeAllModals);
     document.getElementById('modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeAllModals(); });
+
+    // Language switcher
+    var langSwitcher = document.getElementById('lang-switcher');
+    if (langSwitcher) {
+      var curLang = detectLang();
+      langSwitcher.value = curLang;
+      langSwitcher.addEventListener('change', function () {
+        var newLang = this.value;
+        try { localStorage.setItem('ctm-lang', newLang); } catch(e) {}
+        loadLang(newLang);
+      });
+    }
   }
 
   function closeAllModals() {
@@ -1189,18 +1214,8 @@
   }
 
   function init() {
-    loadLang(detectLang());
-    applyLang();
-    // Read version from manifest
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', 'manifest.json', false);
-      xhr.send(null);
-      if (xhr.status === 200) {
-        var mf = JSON.parse(xhr.responseText);
-        if (mf.version) document.getElementById('footer-ver').textContent = 'v' + mf.version;
-      }
-    } catch(e) {}
+    var lang = detectLang();
+    loadLang(lang);
     initEvents(); fetchData(); loadVnstatData(); startPolling();
     var resizeTimer;
     window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 200); });
