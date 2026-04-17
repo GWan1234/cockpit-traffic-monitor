@@ -99,5 +99,16 @@
   "From": "시작",
   "To": "종료",
   "Filter": "필터",
-  "Reset": "초기화"
+  "Reset": "초기화",
+  "records/page": "건/페이지",
+  "Refresh History": "기록 새로고침",
+  "Prev": "이전",
+  "Next": "다음",
+  "Filter by": "필터",
+  "Hour": "시",
+  "Day": "일",
+  "Month": "월",
+  "Year": "년",
+  "First": "처음",
+  "Last": "마지막"
 }

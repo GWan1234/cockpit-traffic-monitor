@@ -88,8 +88,10 @@
     detailSpeedMousePos: null,
     wifiScan: [],
     vnstatTab: 'fiveminutes',
-    vnstatDateFrom: '',
-    vnstatDateTo: '',
+    vnstatFilterFrom: '',
+    vnstatFilterTo: '',
+    vnstatPageSize: 20,
+    vnstatPage: 1,
   };
 
   var VNSTAT_TABS = [
@@ -161,6 +163,12 @@
     loopback: function() { return t('Loopback'); },
   };
   function getTypeLabel(type) { return (typeLabels[type] || function() { return type; })(); }
+
+  function formatDatetimeLocal(ts) {
+    var d = new Date(ts);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')
+      + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
 
   // ---- Tiered History ----
   function ensureHistory(name) {
@@ -1005,12 +1013,17 @@
     }
     // Build vnstat history tabs and table
     state.vnstatTab = 'fiveminutes';
-    state.vnstatDateFrom = '';
-    state.vnstatDateTo = '';
-    var dateFromEl = document.getElementById('vnstat-date-from');
-    var dateToEl = document.getElementById('vnstat-date-to');
-    if (dateFromEl) dateFromEl.value = '';
-    if (dateToEl) dateToEl.value = '';
+    state.vnstatFilterFrom = '';
+    state.vnstatFilterTo = '';
+    state.vnstatPage = 1;
+    // Reset page size selector
+    var pageSizeEl = document.getElementById('vnstat-page-size');
+    if (pageSizeEl) pageSizeEl.value = String(state.vnstatPageSize);
+    // Reset filter inputs
+    var fFrom = document.getElementById('vnstat-filter-from');
+    var fTo = document.getElementById('vnstat-filter-to');
+    if (fFrom) fFrom.value = '';
+    if (fTo) fTo.value = '';
     buildVnstatTabs(name);
     renderVnstatTable(name);
     // Render realtime chart only
@@ -1099,14 +1112,137 @@
       (function (key) {
         btn.addEventListener('click', function () {
           state.vnstatTab = key;
+          state.vnstatFilterFrom = '';
+          state.vnstatFilterTo = '';
+          state.vnstatPage = 1;
           var btns = container.querySelectorAll('.vnstat-tab');
           for (var j = 0; j < btns.length; j++) btns[j].classList.remove('active');
           this.classList.add('active');
+          buildVnstatFilter(ifaceName);
           renderVnstatTable(ifaceName);
         });
       })(tab.key);
       container.appendChild(btn);
     }
+    buildVnstatFilter(ifaceName);
+  }
+
+  // Filter input config per tab
+  var FILTER_CONFIG = {
+    'fiveminutes': { type: 'datetime-local', placeholderFrom: '2026-01-01 00:00', placeholderTo: '2026-12-31 23:59' },
+    'hourly':      { type: 'date',             placeholderFrom: '2026-01-01', placeholderTo: '2026-12-31' },
+    'daily':       { type: 'month',            placeholderFrom: '2026-01', placeholderTo: '2026-12' },
+    'monthly':     { type: 'number',           placeholderFrom: '2024', placeholderTo: '2026' },
+  };
+
+  // Build filter inputs based on current tab granularity
+  function buildVnstatFilter(ifaceName) {
+    var filterBar = document.getElementById('vnstat-filter-bar');
+    var fromInput = document.getElementById('vnstat-filter-from');
+    var toInput = document.getElementById('vnstat-filter-to');
+    if (!filterBar || !fromInput || !toInput) return;
+
+    var tab = state.vnstatTab;
+    var h = state.history[ifaceName];
+
+    // Yearly tab or no data — hide filter
+    if (tab === 'yearly' || !h || !h.vnstat || !h.vnstat[tab] || h.vnstat[tab].length === 0) {
+      filterBar.style.display = 'none';
+      return;
+    }
+
+    var cfg = FILTER_CONFIG[tab];
+    if (!cfg) { filterBar.style.display = 'none'; return; }
+
+    filterBar.style.display = '';
+    fromInput.type = cfg.type;
+    toInput.type = cfg.type;
+    fromInput.placeholder = cfg.placeholderFrom;
+    toInput.placeholder = cfg.placeholderTo;
+
+    // Restore values
+    fromInput.value = state.vnstatFilterFrom;
+    toInput.value = state.vnstatFilterTo;
+
+    // Number inputs: set min/max from data
+    if (cfg.type === 'number') {
+      var h2 = state.history[ifaceName];
+      if (h2 && h2.vnstat && h2.vnstat[tab]) {
+        var years = h2.vnstat[tab].map(function(r) { return new Date(r.ts).getFullYear(); });
+        var minY = Math.min.apply(null, years);
+        var maxY = Math.max.apply(null, years);
+        fromInput.min = minY; fromInput.max = maxY;
+        toInput.min = minY; toInput.max = maxY;
+        fromInput.placeholder = String(minY);
+        toInput.placeholder = String(maxY);
+      }
+    }
+    // Month inputs: constrain year range to data extent
+    if (cfg.type === 'month') {
+      var h3 = state.history[ifaceName];
+      if (h3 && h3.vnstat && h3.vnstat[tab] && h3.vnstat[tab].length > 0) {
+        var months = h3.vnstat[tab].map(function(r) { return r.ts; });
+        var minTs = Math.min.apply(null, months);
+        var maxTs = Math.max.apply(null, months);
+        var minD = new Date(minTs), maxD = new Date(maxTs);
+        fromInput.min = minD.getFullYear() + '-' + String(minD.getMonth()+1).padStart(2,'0');
+        fromInput.max = maxD.getFullYear() + '-' + String(maxD.getMonth()+1).padStart(2,'0');
+        toInput.min = fromInput.min;
+        toInput.max = fromInput.max;
+      }
+    }
+    // Date inputs: constrain range to data extent
+    if (cfg.type === 'date' || cfg.type === 'datetime-local') {
+      var h4 = state.history[ifaceName];
+      if (h4 && h4.vnstat && h4.vnstat[tab] && h4.vnstat[tab].length > 0) {
+        var timestamps = h4.vnstat[tab].map(function(r) { return r.ts; });
+        var minT = Math.min.apply(null, timestamps);
+        var maxT = Math.max.apply(null, timestamps);
+        if (cfg.type === 'date') {
+          var mnD = new Date(minT), mxD = new Date(maxT);
+          fromInput.min = mnD.getFullYear() + '-' + String(mnD.getMonth()+1).padStart(2,'0') + '-' + String(mnD.getDate()).padStart(2,'0');
+          fromInput.max = mxD.getFullYear() + '-' + String(mxD.getMonth()+1).padStart(2,'0') + '-' + String(mxD.getDate()).padStart(2,'0');
+        } else {
+          fromInput.min = formatDatetimeLocal(minT);
+          fromInput.max = formatDatetimeLocal(maxT);
+        }
+        toInput.min = fromInput.min;
+        toInput.max = fromInput.max;
+      }
+    }
+  }
+
+  // Parse filter input value to timestamp range [fromTs, toTs]
+  function parseFilterRange(tab, fromVal, toVal) {
+    var fromTs = 0, toTs = Infinity;
+    if (!fromVal && !toVal) return null;
+
+    if (tab === 'fiveminutes') {
+      // datetime-local: "2026-04-17T14:30"
+      if (fromVal) fromTs = new Date(fromVal).getTime();
+      if (toVal) toTs = new Date(toVal).getTime();
+    } else if (tab === 'hourly') {
+      // date: "2026-04-17" — whole day
+      if (fromVal) fromTs = new Date(fromVal + 'T00:00:00').getTime();
+      if (toVal) toTs = new Date(toVal + 'T23:59:59').getTime();
+    } else if (tab === 'daily') {
+      // month: "2026-04" — whole month
+      if (fromVal) {
+        var fp = fromVal.split('-');
+        fromTs = new Date(+fp[0], +fp[1] - 1, 1).getTime();
+      }
+      if (toVal) {
+        var tp = toVal.split('-');
+        toTs = new Date(+tp[0], +tp[1], 0, 23, 59, 59).getTime(); // last day of month
+      }
+    } else if (tab === 'monthly') {
+      // number: year
+      if (fromVal) fromTs = new Date(+fromVal, 0, 1).getTime();
+      if (toVal) toTs = new Date(+toVal, 11, 31, 23, 59, 59).getTime();
+    }
+    if (isNaN(fromTs)) fromTs = 0;
+    if (isNaN(toTs)) toTs = Infinity;
+    return { from: fromTs, to: toTs };
   }
 
   function renderVnstatTable(ifaceName) {
@@ -1115,9 +1251,15 @@
     var tbody = document.getElementById('vnstat-tbody');
     var emptyEl = document.getElementById('vnstat-empty');
     var tableWrap = document.querySelector('.vnstat-table-wrap');
+    var paginationEl = document.getElementById('vnstat-pagination');
+    var pageInfoEl = document.getElementById('vnstat-page-info');
+    var prevBtn = document.getElementById('vnstat-prev-page');
+    var nextBtn = document.getElementById('vnstat-next-page');
+
     if (!h || !h.vnstat || !h.vnstat[state.vnstatTab] || h.vnstat[state.vnstatTab].length === 0) {
       if (tableWrap) tableWrap.style.display = 'none';
       if (emptyEl) emptyEl.style.display = '';
+      if (paginationEl) paginationEl.style.display = 'none';
       if (thead) thead.innerHTML = '';
       if (tbody) tbody.innerHTML = '';
       return;
@@ -1128,11 +1270,22 @@
     var records = h.vnstat[state.vnstatTab].slice().reverse(); // newest first
     var tab = state.vnstatTab;
 
-    // Date range filter
-    if (state.vnstatDateFrom || state.vnstatDateTo) {
-      var fromTs = state.vnstatDateFrom ? new Date(state.vnstatDateFrom + 'T00:00:00').getTime() : 0;
-      var toTs = state.vnstatDateTo ? new Date(state.vnstatDateTo + 'T23:59:59').getTime() : Infinity;
-      records = records.filter(function (r) { return r.ts >= fromTs && r.ts <= toTs; });
+    // Date/time range filter
+    var range = parseFilterRange(tab, state.vnstatFilterFrom, state.vnstatFilterTo);
+    if (range) {
+      records = records.filter(function (r) { return r.ts >= range.from && r.ts <= range.to; });
+    }
+
+    var totalRecords = records.length;
+    var pageSize = state.vnstatPageSize;
+    var totalPages = pageSize > 0 ? Math.ceil(totalRecords / pageSize) : 1;
+    if (state.vnstatPage > totalPages) state.vnstatPage = totalPages;
+    if (state.vnstatPage < 1) state.vnstatPage = 1;
+
+    // Paginate
+    if (pageSize > 0) {
+      var start = (state.vnstatPage - 1) * pageSize;
+      records = records.slice(start, start + pageSize);
     }
 
     // Determine time format
@@ -1202,6 +1355,24 @@
         + '</tr>';
     }
     tbody.innerHTML = html;
+
+    // Pagination controls
+    if (paginationEl) {
+      if (pageSize > 0 && totalPages > 1) {
+        paginationEl.style.display = '';
+        if (pageInfoEl) pageInfoEl.textContent = state.vnstatPage + ' / ' + totalPages + ' (' + t('Total') + ': ' + totalRecords + ')';
+        var firstBtn2 = document.getElementById('vnstat-first-page');
+        var prevBtn2 = document.getElementById('vnstat-prev-page');
+        var nextBtn2 = document.getElementById('vnstat-next-page');
+        var lastBtn2 = document.getElementById('vnstat-last-page');
+        if (firstBtn2) firstBtn2.disabled = state.vnstatPage <= 1;
+        if (prevBtn2) prevBtn2.disabled = state.vnstatPage <= 1;
+        if (nextBtn2) nextBtn2.disabled = state.vnstatPage >= totalPages;
+        if (lastBtn2) lastBtn2.disabled = state.vnstatPage >= totalPages;
+      } else {
+        paginationEl.style.display = 'none';
+      }
+    }
   }
 
   function fmtRate(bps) {
@@ -1211,27 +1382,109 @@
     return bps.toFixed(0) + ' bit/s';
   }
 
-  // ---- vnstat Date Filter ----
+  // ---- vnstat History Controls (filter, refresh, pagination) ----
   function initVnstatDateFilter() {
-    var applyBtn = document.getElementById('vnstat-date-apply');
-    var resetBtn = document.getElementById('vnstat-date-reset');
-    if (applyBtn) {
-      applyBtn.addEventListener('click', function () {
-        var fromEl = document.getElementById('vnstat-date-from');
-        var toEl = document.getElementById('vnstat-date-to');
-        state.vnstatDateFrom = fromEl ? fromEl.value : '';
-        state.vnstatDateTo = toEl ? toEl.value : '';
+    // Filter apply button
+    var filterApply = document.getElementById('vnstat-filter-apply');
+    var filterReset = document.getElementById('vnstat-filter-reset');
+    var filterFrom = document.getElementById('vnstat-filter-from');
+    var filterTo = document.getElementById('vnstat-filter-to');
+
+    if (filterApply) {
+      filterApply.addEventListener('click', function () {
+        state.vnstatFilterFrom = filterFrom ? filterFrom.value : '';
+        state.vnstatFilterTo = filterTo ? filterTo.value : '';
+        state.vnstatPage = 1;
         if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
       });
     }
-    if (resetBtn) {
-      resetBtn.addEventListener('click', function () {
-        var fromEl = document.getElementById('vnstat-date-from');
-        var toEl = document.getElementById('vnstat-date-to');
-        if (fromEl) fromEl.value = '';
-        if (toEl) toEl.value = '';
-        state.vnstatDateFrom = '';
-        state.vnstatDateTo = '';
+    if (filterReset) {
+      filterReset.addEventListener('click', function () {
+        if (filterFrom) filterFrom.value = '';
+        if (filterTo) filterTo.value = '';
+        state.vnstatFilterFrom = '';
+        state.vnstatFilterTo = '';
+        state.vnstatPage = 1;
+        if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
+      });
+    }
+    // Enter key on filter inputs triggers apply
+    if (filterFrom) {
+      filterFrom.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); if (filterApply) filterApply.click(); }
+      });
+    }
+    if (filterTo) {
+      filterTo.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); if (filterApply) filterApply.click(); }
+      });
+    }
+
+    // Refresh button — reload vnstat data and main page
+    var refreshBtn = document.getElementById('vnstat-refresh-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function () {
+        var svg = this.querySelector('svg');
+        if (svg) svg.style.animation = 'spin 0.6s linear';
+        var self = this;
+        fetchData();
+        loadVnstatData();
+        setTimeout(function () {
+          if (state.selectedInterface) {
+            buildVnstatFilter(state.selectedInterface);
+            renderVnstatTable(state.selectedInterface);
+            renderDetailCharts(state.selectedInterface);
+          }
+          renderStats();
+          renderChart();
+          renderTable();
+          var svg2 = self.querySelector('svg');
+          if (svg2) svg2.style.animation = '';
+        }, 800);
+      });
+    }
+
+    // Page size selector
+    var pageSizeEl = document.getElementById('vnstat-page-size');
+    if (pageSizeEl) {
+      pageSizeEl.addEventListener('change', function () {
+        state.vnstatPageSize = parseInt(this.value) || 0;
+        state.vnstatPage = 1;
+        if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
+      });
+    }
+
+    // Pagination buttons
+    var firstBtn = document.getElementById('vnstat-first-page');
+    var prevBtn = document.getElementById('vnstat-prev-page');
+    var nextBtn = document.getElementById('vnstat-next-page');
+    var lastBtn = document.getElementById('vnstat-last-page');
+    if (firstBtn) {
+      firstBtn.addEventListener('click', function () {
+        if (state.vnstatPage > 1) {
+          state.vnstatPage = 1;
+          if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
+        }
+      });
+    }
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function () {
+        if (state.vnstatPage > 1) {
+          state.vnstatPage--;
+          if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
+        }
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function () {
+        state.vnstatPage++;
+        if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
+      });
+    }
+    if (lastBtn) {
+      lastBtn.addEventListener('click', function () {
+        // Total pages is computed in renderVnstatTable; set high and let render clamp
+        state.vnstatPage = 99999;
         if (state.selectedInterface) renderVnstatTable(state.selectedInterface);
       });
     }

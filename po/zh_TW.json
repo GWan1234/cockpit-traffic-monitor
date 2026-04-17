@@ -99,5 +99,16 @@
   "From": "從",
   "To": "到",
   "Filter": "篩選",
-  "Reset": "重設"
+  "Reset": "重設",
+  "records/page": "條/頁",
+  "Refresh History": "重新整理歷史資料",
+  "Prev": "上一頁",
+  "Next": "下一頁",
+  "Filter by": "篩選",
+  "Hour": "小時",
+  "Day": "天",
+  "Month": "月",
+  "Year": "年",
+  "First": "首頁",
+  "Last": "末頁"
 }

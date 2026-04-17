@@ -99,5 +99,16 @@
   "From": "从",
   "To": "到",
   "Filter": "筛选",
-  "Reset": "重置"
+  "Reset": "重置",
+  "records/page": "条/页",
+  "Refresh History": "刷新历史数据",
+  "Prev": "上一页",
+  "Next": "下一页",
+  "Filter by": "筛选",
+  "Hour": "小时",
+  "Day": "天",
+  "Month": "月",
+  "Year": "年",
+  "First": "首页",
+  "Last": "末页"
 }

@@ -99,5 +99,16 @@
   "From": "From",
   "To": "To",
   "Filter": "Filter",
-  "Reset": "Reset"
+  "Reset": "Reset",
+  "records/page": "records/page",
+  "Refresh History": "Refresh History",
+  "Prev": "Prev",
+  "Next": "Next",
+  "Filter by": "Filter by",
+  "Hour": "Hour",
+  "Day": "Day",
+  "Month": "Month",
+  "Year": "Year",
+  "First": "First",
+  "Last": "Last"
 }

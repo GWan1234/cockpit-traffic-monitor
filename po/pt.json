@@ -99,5 +99,16 @@
   "From": "De",
   "To": "Até",
   "Filter": "Filtrar",
-  "Reset": "Redefinir"
+  "Reset": "Redefinir",
+  "records/page": "records/page",
+  "Refresh History": "Refresh History",
+  "Prev": "Prev",
+  "Next": "Next",
+  "Filter by": "Filtrar por",
+  "Hour": "Hora",
+  "Day": "Dia",
+  "Month": "Mês",
+  "Year": "Ano",
+  "First": "Primeiro",
+  "Last": "Último"
 }

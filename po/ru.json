@@ -99,5 +99,16 @@
   "From": "От",
   "To": "До",
   "Filter": "Фильтр",
-  "Reset": "Сбросить"
+  "Reset": "Сбросить",
+  "records/page": "records/page",
+  "Refresh History": "Refresh History",
+  "Prev": "Prev",
+  "Next": "Next",
+  "Filter by": "Фильтр по",
+  "Hour": "Час",
+  "Day": "День",
+  "Month": "Месяц",
+  "Year": "Год",
+  "First": "Первая",
+  "Last": "Последняя"
 }

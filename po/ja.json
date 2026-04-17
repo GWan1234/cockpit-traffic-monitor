@@ -99,5 +99,16 @@
   "From": "から",
   "To": "まで",
   "Filter": "フィルター",
-  "Reset": "リセット"
+  "Reset": "リセット",
+  "records/page": "件/ページ",
+  "Refresh History": "履歴を更新",
+  "Prev": "前へ",
+  "Next": "次へ",
+  "Filter by": "フィルター",
+  "Hour": "時",
+  "Day": "日",
+  "Month": "月",
+  "Year": "年",
+  "First": "最初",
+  "Last": "最後"
 }
