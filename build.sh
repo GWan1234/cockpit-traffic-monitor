@@ -3,13 +3,13 @@
 set -e
 
 NAME="cockpit-traffic-monitor"
-VERSION=$(grep '"version"' manifest.json | grep -oP '[\d.]+')
+VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"$$[0-9][0-9.]*$$".*/\1/p' manifest.json)
 INSTALL_DIR="/usr/share/cockpit/traffic-monitor"
 
 echo "Building v${VERSION}"
 
 # Sync version to index.html
-sed -i "s|<span>v[0-9]\+\.[0-9]\+\.[0-9]\+</span>|<span>v${VERSION}</span>|" index.html
+sed -i "s|<span>v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*</span>|<span>v${VERSION}</span>|" index.html
 echo "  index.html → v${VERSION}"
 
 # Build .deb
@@ -19,10 +19,8 @@ mkdir -p "$PKG_DIR/DEBIAN"
 mkdir -p "$PKG_DIR${INSTALL_DIR}/src"
 mkdir -p "$PKG_DIR${INSTALL_DIR}/po"
 
-cp index.html "$PKG_DIR${INSTALL_DIR}/"
-cp manifest.json "$PKG_DIR${INSTALL_DIR}/"
-cp src/style.css "$PKG_DIR${INSTALL_DIR}/src/"
-cp src/app.js "$PKG_DIR${INSTALL_DIR}/src/"
+cp index.html manifest.json "$PKG_DIR${INSTALL_DIR}/"
+cp src/* "$PKG_DIR${INSTALL_DIR}/src/"
 cp po/*.json "$PKG_DIR${INSTALL_DIR}/po/"
 
 INSTALLED_SIZE=$(du -sk "$PKG_DIR/usr" | cut -f1)
